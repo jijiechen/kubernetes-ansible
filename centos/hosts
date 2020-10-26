@@ -13,8 +13,9 @@ kubernetes-master-nodes
 ansible_ssh_user=your_user_name
 
 [all:vars]
-# 在修改此值之前，请确保相应版本的镜像已同步至 image_repository
+# 在修改此值之前，请确保相应版本的镜像已同步至 image_repository_gcr
 k8s_version=1.19.3
-image_repository=ccr.ccs.tencentyun.com/synced-gcr
+image_repository_gcr=ccr.ccs.tencentyun.com/synced-gcr
+image_repository_quay=ccr.ccs.tencentyun.com/synced-quay
 
 aliyun_docker_hub_mirror=https://xxxxxx.mirror.aliyuncs.com

@@ -3,14 +3,14 @@
   become: yes
   tasks:
   - name: Pulling images for a Kubernetes  {{ k8s_version }} cluster
-    command: kubeadm config images pull --kubernetes-version {{ k8s_version }} --image-repository {{ image_repository }}
+    command: kubeadm config images pull --kubernetes-version {{ k8s_version }} --image-repository {{ image_repository_gcr }}
 
   - name: Resetting kubeadm
     command: kubeadm reset -f
     register: output
 
   - name: Initializing Kubernetes cluster
-    command: kubeadm init --apiserver-advertise-address {{ hostvars[ 'kubernetes-master' ].ansible_host }} --pod-network-cidr=10.244.0.0/16  --image-repository {{ image_repository }}
+    command: kubeadm init --apiserver-advertise-address {{ hostvars[ 'kubernetes-master' ].ansible_host }} --pod-network-cidr=10.244.0.0/16  --image-repository {{ image_repository_gcr }}
     register: output
 
   - name: Storing Logs and Generated token for future purpose.
@@ -24,10 +24,10 @@
      sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
   - name: Copying flannel.yml
-    copy: 
-      src: ./include/kube-flannel.yml
+    template: 
+      src: ./include/kube-flannel.yml.j2
       dest: /tmp/kube-flannel.yml
-      mode: 666
+      mode: '0666'
 
   - name: Install Network Add-on
     command: kubectl apply -f /tmp/kube-flannel.yml
