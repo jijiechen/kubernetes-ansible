@@ -1,17 +1,20 @@
 [kubernetes-master-nodes]
-kubernetes-master ansible_host=10.11.12.2
+kubernetes-master ansible_host=192.168.1.xx
 
 [kubernetes-worker-nodes]
-kubernetes-worker1 ansible_host=10.11.12.3
-kubernetes-worker2 ansible_host=10.11.12.4
-
+kubernetes-worker1 ansible_host=192.168.1.yy
+kubernetes-worker2 ansible_host=192.168.1.zz
 
 [kubernetes:children]
 kubernetes-worker-nodes
 kubernetes-master-nodes
 
 [kubernetes:vars]
-ansible_password=vagrant
-ansible_ssh_user=vagrant
+ansible_ssh_user=your_user_name
 
+[all:vars]
+# 在修改此值之前，请确保相应版本的镜像已同步至 image_repository
+k8s_version=1.19.3
+image_repository=ccr.ccs.tencentyun.com/synced-gcr
 
+aliyun_docker_hub_mirror=https://xxxxxx.mirror.aliyuncs.com

@@ -1,23 +1,21 @@
 ---
 - hosts: kubernetes-master-nodes
   become: yes
-  vars_files:
-  - env_variables
   tasks:
-  - name: Pulling images required for setting up a Kubernetes cluster
-    shell: kubeadm config images pull
+  - name: Pulling images for a Kubernetes  {{ k8s_version }} cluster
+    command: kubeadm config images pull --kubernetes-version {{ k8s_version }} --image-repository {{ image_repository }}
 
   - name: Resetting kubeadm
-    shell: kubeadm reset -f
+    command: kubeadm reset -f
     register: output
 
   - name: Initializing Kubernetes cluster
-    shell: kubeadm init --apiserver-advertise-address {{ad_addr}} --pod-network-cidr={{cidr_v}}
+    command: kubeadm init --apiserver-advertise-address {{ hostvars[ 'kubernetes-master' ].ansible_host }} --pod-network-cidr=10.244.0.0/16  --image-repository {{ image_repository }}
     register: output
 
   - name: Storing Logs and Generated token for future purpose.
-    local_action: copy content={{ output.stdout }} dest={{ token_file }}
-    sudo: False 
+    local_action: copy content={{ output.stdout }} dest=join_token
+    become: no
 
   - name: Copying required files
     shell: |
@@ -25,5 +23,16 @@
      sudo cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
      sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
+  - name: Copying flannel.yml
+    copy: 
+      src: ./include/kube-flannel.yml
+      dest: /tmp/kube-flannel.yml
+      mode: 666
+
   - name: Install Network Add-on
-    command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    command: kubectl apply -f /tmp/kube-flannel.yml
+
+  - name: Dumping kube config into working space
+    fetch:
+      src: /etc/kubernetes/admin.conf
+      dest: ../kubeconfig

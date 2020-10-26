@@ -1,8 +1,6 @@
 ---
 - hosts: all
   become: yes
-  vars_files:
-  - env_variables
   tasks:
   - name: Creating a repository file for Kubernetes
     file:
@@ -15,40 +13,99 @@
      block: |
       [kubernetes]
       name=Kubernetes
-      baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
       enabled=1
       gpgcheck=1
       repo_gpgcheck=1
-      gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
 
-  - name: Installing Docker and firewalld
-    shell: |
-     yum install firewalld -y
-     yum install -y yum-utils device-mapper-persistent-data lvm2
-     yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-     yum install docker-ce -y --nobest
+  - name: Installing base packages
+    package:
+      name:
+        - firewalld
+        - yum-utils
+        - device-mapper-persistent-data
+        - lvm2
+      state: present
+
+  - name: Importing Docker mirror repo
+    command: yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 
   - name: Installing required packages
-    yum:
-     name: "{{ item }}"
-     state: present
-    with_items: "{{ packages }}"
+    package:
+      name:
+        - docker-ce
+        - kubeadm
+        - kubectl
+      state: present
 
   - name: Starting and Enabling the required services
     service:
      name: "{{ item }}"
      state: started
      enabled: yes
-    with_items: "{{ services }}"
+    with_items: 
+      - docker
+      - kubelet
+      - firewalld
 
+  - name: add aliyun mirror for docker hub
+    lineinfile: 
+      state: present
+      path: /etc/docker/daemon.json
+      create: yes
+      line: '{ "registry-mirrors": ["{{ aliyun_docker_hub_mirror }}"] }'
+    when: aliyun_docker_hub_mirror != 'https://xxxxxx.mirror.aliyuncs.com'
+
+  - name: Restarting Docker to enable mirror
+    service:
+     name: docker
+     state: restarted
+
+  - name: Enabling Bridge Firewall Rule
+    shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+
+# allow required ports: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#check-required-ports
+
+- hosts: kubernetes-master-nodes
+  become: yes
+  tasks:
   - name: Allow Network Ports in Firewalld
     firewalld:
      port: "{{ item }}"
      state: enabled
      permanent: yes
      immediate: yes
-    with_items: "{{ ports }}"
+    with_items: 
+      - "6443/tcp"      # Kubernetes API server, used by all, including external
+      - "10250/tcp"     # Kubelet API, used by control plane
+      # - "10251/tcp"   # Kubelet API, used by self
+      # - "10252/tcp"   # Kubelet API, used by self
+      - "8285/udp"      # Flannel, used by all nodes
+      - "8472/udp"      # Flannel, used by all nodes
 
-  - name: Enabling Bridge Firewall Rule
-    shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+  - name: Reloading firewalld
+    shell: |
+      firewall-cmd --add-masquerade --permanent
+      firewall-cmd --reload
+
+- hosts: kubernetes-worker-nodes
+  become: yes
+  tasks:
+  - name: Allow Network Ports in Firewalld
+    firewalld:
+     port: "{{ item }}"
+     state: enabled
+     permanent: yes
+     immediate: yes
+    with_items: 
+      - "10250/tcp"            # Kubelet API, used by control plane
+      - "30000-32767/tcp"      # Node ports, used by all, including external
+      - "8285/udp"             # Flannel, used by all nodes
+      - "8472/udp"             # Flannel, used by all nodes
+
+  - name: Reloading firewalld
+    shell: |
+      firewall-cmd --add-masquerade --permanent
+      firewall-cmd --reload
