@@ -1,25 +1,21 @@
-# Kubernetes Cluster using Ansible
-* Clone repository.
-* Create multiple centos8 servers. One master and many worker. Use vagrant like [here](https://github.com/edib/many_vagrant_machines)
-* Change the “ad_addr” in the env_variables file with the IP address of the Kubernetes master node.
-* Add the IP Addresses of the worker nodes and the master node in the “hosts” file.
-* Run the following command to setup the Kubernetes Master node.
+# 使用 Ansible 安装 Kubernetes 集群
+
+* 克隆此项目
+* 创建多个 CentOS 7 服务器，可以以一台作为主控节点，而其他作为工作节点
+* 编辑 `hosts` 文件中的 IP 地址
+* 运行下列命行，分别完成 Kubernetes 主控制节点和工作节点的安装
 
 ```
 ansible-playbook setup_master_node.yml
-```
-* Once the master node is ready, run the following command to set up the worker nodes.
-
-```
 ansible-playbook setup_worker_nodes.yml
 ```
 
-* Once the workers have joined the cluster, run the following command to check the status of the worker nodes.
+* 工作节点加入集群后，可使用以下命令查看其状态：
 ```
 kubectl get nodes
 ```
 
-## Reference:
+## 参考文献:
 * https://medium.com/faun/how-to-create-your-own-kubernetes-cluster-using-ansible-7c6b5c031a5d
 
 
